@@ -144,16 +144,16 @@ void input()
 		switch(getch())
 		{
 			case 'a':
-				snake.direction = 1;
+				if(snake.direction != 3) snake.direction = 1;
 				break;
 			case 's':
-				snake.direction = 2;
+				if(snake.direction != 4) snake.direction = 2;
 				break;
 			case 'd':
-				snake.direction = 3;
+				if(snake.direction != 1) snake.direction = 3;
 				break;
 			case 'w':
-				snake.direction = 4;
+				if(snake.direction != 2) snake.direction = 4;
 				break;
 		}
 	}
