@@ -1,196 +1,168 @@
 #include <stdio.h>
+#include <conio.h>
 #include <stdlib.h>
 #include <time.h>
-#include <termios.h>
-#include <unistd.h>
-#include <fcntl.h>
 
-int getch();
-int kbhit();
-int delay();
-int randInt();
-void draw();
-int move();
-void input();
-void checkFruit();
-
-struct coords 
+typedef struct Coords
 {
 	int x;
 	int y;
-	int direction; // [1, 2, 3, 4] => [left, up, right, down]
-};
+} coords;
 
-struct coords snake;
-struct coords fruit;
-int width = 81, height = 41, score = 0;
-
-int getch(void)
+typedef struct Vector
 {
-    struct termios oldattr, newattr;
-    int ch;
-    tcgetattr( STDIN_FILENO, &oldattr );
-    newattr = oldattr;
-    newattr.c_lflag &= ~( ICANON | ECHO );
-    tcsetattr( STDIN_FILENO, TCSANOW, &newattr );
-    ch = getchar();
-    tcsetattr( STDIN_FILENO, TCSANOW, &oldattr );
-    return ch;
+    coords position;
+    int direction; // [1, 2, 3, 4] => [left, up, right, down]
+} vector;
+
+void draw(int width, int height, vector snake, coords fruit, int score);
+int random(int min, int max);
+int isGameover(int width, int height, vector snake);
+void delay(int ms);
+void move(vector *snake);
+void changeDir(vector *snake);
+int isSnakeAteFruit(vector snake, coords fruit, int *score);
+void spawnFruit(int width, int height, coords *fruit);
+
+int main(void)
+{
+    int gameover = 0;
+    int width = 20;
+    int height = 20;
+    int score = 0;
+
+    vector snake;
+    coords fruit;
+
+    snake.position.x = random(3, width - 3);
+    snake.position.y = random(3, height - 3);
+    snake.direction = random(1, 4);
+    fruit.x = random(1, width - 1);
+    fruit.y = random(1, height - 1);
+
+    while(!gameover)
+    {
+        delay(50);
+        if(kbhit()) changeDir(&snake);
+        move(&snake);
+        if(isSnakeAteFruit(snake, fruit, &score)) spawnFruit(width, height, &fruit);
+        gameover = isGameover(width, height, snake);
+        draw(width, height, snake, fruit, score);
+    }
+
+    system("cls");
+    printf("GAME OVER\n");
+    printf("SCORE: %i\n", score);
+
+    return 0;
 }
 
-int kbhit(void)
+void draw(int width, int height, vector snake, coords fruit, int score)
 {
-  struct termios oldt, newt;
-  int ch;
-  int oldf;
+    int x, y;
 
-  tcgetattr(STDIN_FILENO, &oldt);
-  newt = oldt;
-  newt.c_lflag &= ~(ICANON | ECHO);
-  tcsetattr(STDIN_FILENO, TCSANOW, &newt);
-  oldf = fcntl(STDIN_FILENO, F_GETFL, 0);
-  fcntl(STDIN_FILENO, F_SETFL, oldf | O_NONBLOCK);
-
-  ch = getchar();
-
-  tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
-  fcntl(STDIN_FILENO, F_SETFL, oldf);
-
-  if(ch != EOF)
-  {
-    ungetc(ch, stdin);
-    return 1;
-  }
-
-  return 0;
-}
-
-int delay(int milseconds)
-{
-	clock_t start_time = clock();
-
-	while(clock() < start_time + milseconds);
-}
-
-int randInt(int minInt, int maxInt)
-{
-	srand(time(NULL));
-	return rand() % maxInt + minInt;
-}
-
-void draw(int width, int height, struct coords *snake, struct coords fruit, int score)
-{
-	system("clear");
-	printf("%i", snake -> direction);
+    system("cls");
+    printf("%i", snake.direction);
 	printf("\t\t\tScore: %i\n", score);
 
-	for(int y = 1; y <= height; y++)
-	{
-		for(int x = 1; x <= width; x++)
-		{
-			if(y == 1 || y == height)
+    for(y = 0; y <= height; y++)
+    {
+        for(x = 0; x <= width; x++)
+        {
+            if(y == 0 || y == height)
 			{
 				printf("Z");
 			}
-			else if (x == 1 || x == width)
+			else if (x == 0 || x == width)
 			{
 				printf("H");
 			}
-			else if(x == snake -> x && y == snake -> y)
+			else if(x == snake.position.x && y == snake.position.y)
 			{
-				printf("S");
+				printf("#");
 			}
 			else if(x == fruit.x && y == fruit.y)
 			{
-				printf("F");
+				printf("$");
 			}
 			else
 			{
 				printf(" ");
 			}
-		}
-		puts("");
-	}
+        }
+        printf("\n");
+    }
 }
 
-int move(int width, int height, struct coords *snake, struct coords fruit, int score)
+int random(int min, int max)
 {
-	switch(snake -> direction)
+    srand(time(NULL));
+	return rand() % max + min;
+}
+
+int isGameover(int width, int height, vector snake)
+{
+    if(snake.position.x == 1 || snake.position.x == width || snake.position.y == 1 || snake.position.y == height) return 1;
+    return 0;
+}
+
+void delay(int ms)
+{
+	clock_t start_time = clock();
+
+	while(clock() < start_time + ms);
+}
+
+void move(vector *snake)
+{
+    switch(snake -> direction)
 	{
 		case 1:
-			snake -> x -= 1;
+			snake -> position.x -= 1;
 			break;
 		case 2:
-			snake -> y += 1;
+			snake -> position.y += 1;
 			break;
 		case 3:
-			snake -> x += 1;
+			snake -> position.x += 1;
 			break;
 		case 4:
-			snake -> y -= 1;
+			snake -> position.y -= 1;
 			break;
 	}
-
-	if(snake -> y < 2 || snake -> x < 2 || snake -> y > height - 1 || snake -> x > width - 1) return 0;
-
-	draw(width, height, snake, fruit, score);
-	return 1;
 }
 
-void input()
+void changeDir(vector *snake)
 {
-	if(kbhit())
+	switch(getch())
 	{
-		switch(getch())
-		{
-			case 'a':
-				if(snake.direction != 3) snake.direction = 1;
-				break;
-			case 's':
-				if(snake.direction != 4) snake.direction = 2;
-				break;
-			case 'd':
-				if(snake.direction != 1) snake.direction = 3;
-				break;
-			case 'w':
-				if(snake.direction != 2) snake.direction = 4;
-				break;
-		}
-	}
+		case 'a':
+			if(snake -> direction != 3) snake -> direction = 1;
+			break;
+		case 's':
+			if(snake -> direction != 4) snake -> direction = 2;
+			break;
+		case 'd':
+			if(snake -> direction != 1) snake -> direction = 3;
+			break;
+		case 'w':
+			if(snake -> direction != 2) snake -> direction = 4;
+			break;
+    }
 }
 
-void checkFruit(struct coords snake, struct coords *fruit, int *score)
+int isSnakeAteFruit(vector snake, coords fruit, int *score)
 {
-	if(snake.x == fruit -> x && snake.y == fruit -> y)
-	{
-		++*score;
-		fruit -> x = randInt(2, width - 2);
-		fruit -> y = randInt(2, height - 2);
-	}
+    if(snake.position.x == fruit.x && snake.position.y == fruit.y) 
+    {
+        ++*score;
+        return 1;
+    }
+    return 0;
 }
 
-int main()
-{	
-	int gameover;
-	snake.x = randInt(2, width - 2);
-	snake.y = randInt(2, height - 2);
-	snake.direction = randInt(1, 4);
-	fruit.x = randInt(2, width - 2);
-	fruit.y = randInt(2, height - 2);
-
-	draw(width, height, &snake, fruit, score);
-
-	while(1)
-	{
-		delay(500);
-		gameover = move(width, height, &snake, fruit, score);
-		if(!gameover) break;
-		input();
-		checkFruit(snake, &fruit, &score);
-	}
-
-	system("clear");
-	printf("You lost\nYour score: %i\n", score);
-
-	return 0;
+void spawnFruit(int width, int height, coords *fruit)
+{
+    fruit -> x = random(1, width - 1);
+    fruit -> y = random(1, height - 1);
 }
